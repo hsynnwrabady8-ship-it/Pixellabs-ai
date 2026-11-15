@@ -1,0 +1,104 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidProject(data) {
+      return data.userId is string && data.userId == request.auth.uid && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 120 &&
+             data.canvasWidth is int && data.canvasWidth >= 64 && data.canvasWidth <= 4096 &&
+             data.canvasHeight is int && data.canvasHeight >= 64 && data.canvasHeight <= 4096 &&
+             data.backgroundType is string && data.backgroundType in ['COLOR', 'GRADIENT', 'TRANSPARENT', 'PRESET_NEBULA', 'IMAGE'] &&
+             data.backgroundColorHex is string && data.backgroundColorHex.size() >= 4 && data.backgroundColorHex.size() <= 20 &&
+             data.backgroundSecondaryHex is string && data.backgroundSecondaryHex.size() >= 4 && data.backgroundSecondaryHex.size() <= 20 &&
+             data.layerCount is int && data.layerCount >= 0 && data.layerCount <= 100 &&
+             data.layerTitles is list && data.layerTitles.size() <= 50 && (data.layerTitles.size() == 0 || (data.layerTitles[0] is string && data.layerTitles[0].size() <= 120)) &&
+             data.primaryText is string && data.primaryText.size() <= 500 &&
+             data.fontId is string && data.fontId.size() >= 1 && data.fontId.size() <= 60 &&
+             data.accentColorHex is string && data.accentColorHex.size() >= 4 && data.accentColorHex.size() <= 20 &&
+             data.is3dEnabled is bool &&
+             data.depth3d is int && data.depth3d >= 0 && data.depth3d <= 100 &&
+             data.curveAngle is int && data.curveAngle >= -360 && data.curveAngle <= 360 &&
+             data.plpFileName is string && data.plpFileName.size() <= 160 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    match /users/{userId}/projects/{projectId} {
+      allow get: if isSignedIn() &&
+                    isValidId(userId) &&
+                    isValidId(projectId) &&
+                    request.auth.uid == userId &&
+                    existing().userId == request.auth.uid;
+
+      allow list: if isSignedIn() &&
+                     request.auth.uid == userId &&
+                     existing().userId == request.auth.uid;
+
+      allow create: if isSignedIn() &&
+                       isValidId(userId) &&
+                       isValidId(projectId) &&
+                       request.auth.uid == userId &&
+                       incoming().keys().hasAll([
+                         'userId', 'title', 'canvasWidth', 'canvasHeight',
+                         'backgroundType', 'backgroundColorHex', 'backgroundSecondaryHex',
+                         'layerCount', 'layerTitles', 'primaryText', 'fontId',
+                         'accentColorHex', 'is3dEnabled', 'depth3d', 'curveAngle',
+                         'plpFileName', 'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'title', 'canvasWidth', 'canvasHeight',
+                         'backgroundType', 'backgroundColorHex', 'backgroundSecondaryHex',
+                         'layerCount', 'layerTitles', 'primaryText', 'fontId',
+                         'accentColorHex', 'is3dEnabled', 'depth3d', 'curveAngle',
+                         'plpFileName', 'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidProject(incoming());
+
+      allow update: if (
+        isSignedIn() &&
+        isValidProject(incoming()) &&
+        isValidId(userId) &&
+        isValidId(projectId) &&
+        request.auth.uid == userId &&
+        existing().userId == request.auth.uid &&
+        incoming().userId == existing().userId &&
+        incoming().createdAt == existing().createdAt &&
+        (
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'title', 'canvasWidth', 'canvasHeight',
+            'backgroundType', 'backgroundColorHex', 'backgroundSecondaryHex',
+            'layerCount', 'layerTitles', 'primaryText', 'fontId',
+            'accentColorHex', 'is3dEnabled', 'depth3d', 'curveAngle',
+            'plpFileName', 'updatedAt'
+          ])
+        )
+      );
+
+      allow delete: if isSignedIn() &&
+                       isValidId(userId) &&
+                       isValidId(projectId) &&
+                       request.auth.uid == userId &&
+                       existing().userId == request.auth.uid;
+    }
+  }
+}

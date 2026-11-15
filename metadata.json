@@ -1,0 +1,6 @@
+{
+  "name": "PixelLab AI",
+  "description": "استودیوی حرفه‌ای طراحی گرافیک، تایپوگرافی سه‌بعدی و ویرایش هوشمند تصویر با هوش مصنوعی جمینای و پشتیبانی از پروژه PLP",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

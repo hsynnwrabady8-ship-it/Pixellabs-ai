@@ -1,0 +1,114 @@
+{
+  "entities": {
+    "StudioProjectDoc": {
+      "title": "StudioProjectDoc",
+      "description": "Cloud-synced PixelLab AI Studio graphic design project metadata and primary layer configuration. Clients must submit FieldValue.serverTimestamp() for createdAt and updatedAt.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "UID of the authenticated Google user who owns this project."
+        },
+        "title": {
+          "type": "string",
+          "description": "Display title of the design project (1 to 120 chars)."
+        },
+        "canvasWidth": {
+          "type": "integer",
+          "description": "Canvas width in pixels (64 to 4096)."
+        },
+        "canvasHeight": {
+          "type": "integer",
+          "description": "Canvas height in pixels (64 to 4096)."
+        },
+        "backgroundType": {
+          "type": "string",
+          "description": "Canvas background mode.",
+          "enum": ["COLOR", "GRADIENT", "TRANSPARENT", "PRESET_NEBULA", "IMAGE"]
+        },
+        "backgroundColorHex": {
+          "type": "string",
+          "description": "Primary background hex color string."
+        },
+        "backgroundSecondaryHex": {
+          "type": "string",
+          "description": "Secondary gradient hex color string."
+        },
+        "layerCount": {
+          "type": "integer",
+          "description": "Total number of layers in the project (0 to 100)."
+        },
+        "layerTitles": {
+          "type": "array",
+          "description": "Ordered list of layer names/summaries (max 50 items)."
+        },
+        "primaryText": {
+          "type": "string",
+          "description": "Headline text content of the primary text layer."
+        },
+        "fontId": {
+          "type": "string",
+          "description": "Selected font identifier for the primary text layer."
+        },
+        "accentColorHex": {
+          "type": "string",
+          "description": "Accent or primary text hex color."
+        },
+        "is3dEnabled": {
+          "type": "boolean",
+          "description": "Whether 3D extrusion is active on the primary text layer."
+        },
+        "depth3d": {
+          "type": "integer",
+          "description": "3D extrusion depth (0 to 100)."
+        },
+        "curveAngle": {
+          "type": "integer",
+          "description": "Text curve angle in degrees (-360 to 360)."
+        },
+        "plpFileName": {
+          "type": "string",
+          "description": "Associated local .plp package file name."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation server timestamp (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update server timestamp (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "userId",
+        "title",
+        "canvasWidth",
+        "canvasHeight",
+        "backgroundType",
+        "backgroundColorHex",
+        "backgroundSecondaryHex",
+        "layerCount",
+        "layerTitles",
+        "primaryText",
+        "fontId",
+        "accentColorHex",
+        "is3dEnabled",
+        "depth3d",
+        "curveAngle",
+        "plpFileName",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/projects/{projectId}": {
+      "schema": {
+        "$ref": "#/entities/StudioProjectDoc"
+      },
+      "description": "Per-user collection of PixelLab AI Studio graphic design projects."
+    }
+  }
+}

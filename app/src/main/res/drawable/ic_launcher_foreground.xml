@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <group
+        android:scaleX="0.55"
+        android:scaleY="0.55"
+        android:translateX="5.4"
+        android:translateY="5.4">
+        <!-- Back Layer Diamond -->
+        <path
+            android:fillColor="#A855F7"
+            android:pathData="M11.99,18.54l-7.37,-5.73L3,14.07l9,7 9,-7 -1.63,-1.27 -7.38,5.74z" />
+        <!-- Middle Layer Diamond -->
+        <path
+            android:fillColor="#38BDF8"
+            android:pathData="M12,16l7.36,-5.73L21,9l-9,-7 -9,7 1.63,1.27L12,16z" />
+        <!-- Inner Studio Pen / Sparkle Accent -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M12,6.5l1.45,3.05L16.5,11l-3.05,1.45L12,15.5l-1.45,-3.05L7.5,11l3.05,-1.45L12,6.5z" />
+    </group>
+</vector>
