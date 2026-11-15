@@ -295,9 +295,12 @@ class StudioViewModel(
         }
     }
 
-    // Undo / Redo History Stacks
+    // Undo / Redo History Stacks & Coalescing State
     private val undoStack = ArrayDeque<StudioProject>()
     private val redoStack = ArrayDeque<StudioProject>()
+    private var lastUndoCoalesceKey: String? = null
+    private var lastUndoTimestampMs: Long = 0L
+    private var gestureUndoCaptured = false
 
     private val _canUndo = MutableStateFlow(false)
     val canUndo: StateFlow<Boolean> = _canUndo.asStateFlow()
@@ -438,6 +441,9 @@ class StudioViewModel(
 
     fun confirmPendingAgentTransaction() {
         val tx = _pendingAgentTransaction.value ?: return
+        pushUndoSnapshot(tx.preTransactionProject)
+        lastUndoCoalesceKey = null
+        lastUndoTimestampMs = 0L
         _project.value = tx.postTransactionProject
         _selectedLayerId.value = tx.postTransactionSelectedLayerId
         _pendingAgentTransaction.value = null
@@ -487,13 +493,27 @@ class StudioViewModel(
         return output
     }
 
-    private fun pushUndoSnapshot() {
-        undoStack.addLast(_project.value)
+    private fun pushUndoSnapshot(project: StudioProject) {
+        if (undoStack.lastOrNull() == project) return
+        undoStack.addLast(project)
         if (undoStack.size > 30) {
             undoStack.removeFirst()
         }
         redoStack.clear()
         updateHistoryFlags()
+    }
+
+    private fun pushUndoSnapshot(coalesceKey: String? = null) {
+        val now = System.currentTimeMillis()
+        if (coalesceKey != null && coalesceKey == lastUndoCoalesceKey && (now - lastUndoTimestampMs) < 450L) {
+            lastUndoTimestampMs = now
+            return
+        }
+        val current = _project.value
+        if (undoStack.lastOrNull() == current) return
+        pushUndoSnapshot(current)
+        lastUndoCoalesceKey = coalesceKey
+        lastUndoTimestampMs = if (coalesceKey != null) now else 0L
     }
 
     private fun updateHistoryFlags() {
@@ -503,6 +523,9 @@ class StudioViewModel(
 
     fun undo() {
         if (undoStack.isEmpty()) return
+        lastUndoCoalesceKey = null
+        lastUndoTimestampMs = 0L
+        gestureUndoCaptured = false
         val current = _project.value
         val previous = undoStack.removeLast()
         redoStack.addLast(current)
@@ -515,6 +538,9 @@ class StudioViewModel(
 
     fun redo() {
         if (redoStack.isEmpty()) return
+        lastUndoCoalesceKey = null
+        lastUndoTimestampMs = 0L
+        gestureUndoCaptured = false
         val current = _project.value
         val next = redoStack.removeLast()
         undoStack.addLast(current)
@@ -862,7 +888,6 @@ class StudioViewModel(
     }
 
     fun applyQuoteItem(quote: StudioQuoteItem) {
-        pushUndoSnapshot()
         val selected = _project.value.layers.find { it.id == _selectedLayerId.value }
         if (selected is TextLayer) {
             updateSelectedTextLayer {
@@ -873,6 +898,7 @@ class StudioViewModel(
                 )
             }
         } else {
+            pushUndoSnapshot()
             val newLayer = TextLayer(
                 name = "جمله (${quote.categoryFa})",
                 text = quote.text,
@@ -1524,6 +1550,11 @@ class StudioViewModel(
         val currentLayer = _project.value.layers.find { it.id == targetId } ?: return
         if (currentLayer.isLocked) return
 
+        if (!gestureUndoCaptured) {
+            pushUndoSnapshot()
+            gestureUndoCaptured = true
+        }
+
         var rawX = (currentLayer.x + dxNorm).coerceIn(-0.85f, 0.85f)
         var rawY = (currentLayer.y + dyNorm).coerceIn(-0.85f, 0.85f)
 
@@ -1554,14 +1585,14 @@ class StudioViewModel(
 
     fun finalizeGestureTransform() {
         _snapGuides.value = Pair(false, false)
-        pushUndoSnapshot()
+        gestureUndoCaptured = false
     }
 
     fun nudgeSelectedLayer(dxNorm: Float, dyNorm: Float) {
         val targetId = _selectedLayerId.value ?: return
         val currentLayer = _project.value.layers.find { it.id == targetId } ?: return
         if (currentLayer.isLocked) return
-        pushUndoSnapshot()
+        pushUndoSnapshot(coalesceKey = "nudge:$targetId")
         val newX = (currentLayer.x + dxNorm).coerceIn(-0.85f, 0.85f)
         val newY = (currentLayer.y + dyNorm).coerceIn(-0.85f, 0.85f)
         updateSelectedLayer(recordUndo = false) { layer ->
@@ -1705,7 +1736,7 @@ class StudioViewModel(
 
     private fun updateSelectedLayer(recordUndo: Boolean, transform: (StudioLayer) -> StudioLayer) {
         val targetId = _selectedLayerId.value ?: return
-        if (recordUndo) pushUndoSnapshot()
+        if (recordUndo) pushUndoSnapshot(coalesceKey = "layer:$targetId")
         _project.value = _project.value.copy(
             layers = _project.value.layers.map { layer ->
                 if (layer.id == targetId) transform(layer) else layer
@@ -1716,7 +1747,6 @@ class StudioViewModel(
     // --- Canvas Background, Aspect Ratio & Post-FX ---
 
     fun applyTextPreset(preset: TextStylePreset) {
-        pushUndoSnapshot()
         val selected = _project.value.layers.find { it.id == _selectedLayerId.value }
         if (selected is TextLayer) {
             updateSelectedTextLayer {
@@ -1734,6 +1764,7 @@ class StudioViewModel(
                 )
             }
         } else {
+            pushUndoSnapshot()
             val newLayer = TextLayer(
                 name = preset.titleFa,
                 text = preset.sampleText,
@@ -2015,12 +2046,12 @@ class StudioViewModel(
     }
 
     fun updateCanvasBackground(transform: (CanvasBackground) -> CanvasBackground) {
-        pushUndoSnapshot()
+        pushUndoSnapshot(coalesceKey = "canvas_background")
         _project.value = _project.value.copy(background = transform(_project.value.background))
     }
 
     fun updateCanvasPostFx(transform: (CanvasPostFx) -> CanvasPostFx) {
-        pushUndoSnapshot()
+        pushUndoSnapshot(coalesceKey = "canvas_postfx")
         _project.value = _project.value.copy(postFx = transform(_project.value.postFx))
     }
 
@@ -3415,7 +3446,6 @@ class StudioViewModel(
                 }
 
                 if (editedBitmap != null) {
-                    pushUndoSnapshot()
                     if (selectedLayer is ImageLayer) {
                         updateSelectedImageLayer { it.copy(bitmap = editedBitmap, name = "${it.name} (ویرایش AI)") }
                     } else {

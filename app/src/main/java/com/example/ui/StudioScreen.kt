@@ -721,133 +721,135 @@ fun StudioScreen(
                                     var prevPos = downPos
                                     val touchSlop = viewConfiguration.touchSlop
 
-                                    do {
-                                        val event = awaitPointerEvent()
-                                        val activePointers = event.changes.filter { it.pressed }
-                                        if (activePointers.isEmpty()) break
+                                    try {
+                                        do {
+                                            val event = awaitPointerEvent()
+                                            val activePointers = event.changes.filter { it.pressed }
+                                            if (activePointers.isEmpty()) break
 
-                                        if (activePointers.size == 1) {
-                                            val change = activePointers[0]
-                                            val currPos = change.position
-                                            val dragDelta = currPos - prevPos
-                                            if (!hasMoved && (currPos - downPos).getDistance() > touchSlop) {
-                                                hasMoved = true
-                                            }
-                                            if (hasMoved) {
-                                                if (hitLayer != null && !hitLayer.isLocked) {
-                                                    change.consume()
-                                                    val mappedPrev = viewModel.screenToCanvasNormalized(prevPos.x, prevPos.y, w, h)
-                                                    val mappedCurr = viewModel.screenToCanvasNormalized(currPos.x, currPos.y, w, h)
-                                                    val layerCenterPxX = (0.5f + hitLayer.x) * w
-                                                    val layerCenterPxY = (0.5f + hitLayer.y) * h
-                                                    val prevCanvasPxX = mappedPrev.x * w
-                                                    val prevCanvasPxY = mappedPrev.y * h
-                                                    val currCanvasPxX = mappedCurr.x * w
-                                                    val currCanvasPxY = mappedCurr.y * h
-                                                    when (activeHandleMode) {
-                                                        1 -> {
-                                                            // 1-Finger Corner Scale Handle
-                                                            val prevDist = hypot(prevCanvasPxX - layerCenterPxX, prevCanvasPxY - layerCenterPxY).coerceAtLeast(10f)
-                                                            val currDist = hypot(currCanvasPxX - layerCenterPxX, currCanvasPxY - layerCenterPxY).coerceAtLeast(10f)
-                                                            val zoom = (currDist / prevDist).coerceIn(0.8f, 1.25f)
-                                                            viewModel.transformSelectedLayerByGesture(
-                                                                dxNorm = 0f,
-                                                                dyNorm = 0f,
-                                                                zoomChange = zoom,
-                                                                rotationChangeDeg = 0f
-                                                            )
+                                            if (activePointers.size == 1) {
+                                                val change = activePointers[0]
+                                                val currPos = change.position
+                                                val dragDelta = currPos - prevPos
+                                                if (!hasMoved && (currPos - downPos).getDistance() > touchSlop) {
+                                                    hasMoved = true
+                                                }
+                                                if (hasMoved) {
+                                                    if (hitLayer != null && !hitLayer.isLocked) {
+                                                        change.consume()
+                                                        val mappedPrev = viewModel.screenToCanvasNormalized(prevPos.x, prevPos.y, w, h)
+                                                        val mappedCurr = viewModel.screenToCanvasNormalized(currPos.x, currPos.y, w, h)
+                                                        val layerCenterPxX = (0.5f + hitLayer.x) * w
+                                                        val layerCenterPxY = (0.5f + hitLayer.y) * h
+                                                        val prevCanvasPxX = mappedPrev.x * w
+                                                        val prevCanvasPxY = mappedPrev.y * h
+                                                        val currCanvasPxX = mappedCurr.x * w
+                                                        val currCanvasPxY = mappedCurr.y * h
+                                                        when (activeHandleMode) {
+                                                            1 -> {
+                                                                // 1-Finger Corner Scale Handle
+                                                                val prevDist = hypot(prevCanvasPxX - layerCenterPxX, prevCanvasPxY - layerCenterPxY).coerceAtLeast(10f)
+                                                                val currDist = hypot(currCanvasPxX - layerCenterPxX, currCanvasPxY - layerCenterPxY).coerceAtLeast(10f)
+                                                                val zoom = (currDist / prevDist).coerceIn(0.8f, 1.25f)
+                                                                viewModel.transformSelectedLayerByGesture(
+                                                                    dxNorm = 0f,
+                                                                    dyNorm = 0f,
+                                                                    zoomChange = zoom,
+                                                                    rotationChangeDeg = 0f
+                                                                )
+                                                            }
+                                                            2 -> {
+                                                                // 1-Finger Corner Rotate Handle
+                                                                val prevAng = Math.toDegrees(kotlin.math.atan2((prevCanvasPxY - layerCenterPxY).toDouble(), (prevCanvasPxX - layerCenterPxX).toDouble())).toFloat()
+                                                                val currAng = Math.toDegrees(kotlin.math.atan2((currCanvasPxY - layerCenterPxY).toDouble(), (currCanvasPxX - layerCenterPxX).toDouble())).toFloat()
+                                                                var rotDelta = currAng - prevAng
+                                                                if (rotDelta > 180f) rotDelta -= 360f
+                                                                if (rotDelta < -180f) rotDelta += 360f
+                                                                viewModel.transformSelectedLayerByGesture(
+                                                                    dxNorm = 0f,
+                                                                    dyNorm = 0f,
+                                                                    zoomChange = 1f,
+                                                                    rotationChangeDeg = rotDelta
+                                                                )
+                                                            }
+                                                            else -> {
+                                                                val dxNorm = (dragDelta.x / w) / currentZoomScale.coerceAtLeast(1f)
+                                                                val dyNorm = (dragDelta.y / h) / currentZoomScale.coerceAtLeast(1f)
+                                                                viewModel.transformSelectedLayerByGesture(
+                                                                    dxNorm = dxNorm,
+                                                                    dyNorm = dyNorm,
+                                                                    zoomChange = 1f,
+                                                                    rotationChangeDeg = 0f
+                                                                )
+                                                            }
                                                         }
-                                                        2 -> {
-                                                            // 1-Finger Corner Rotate Handle
-                                                            val prevAng = Math.toDegrees(kotlin.math.atan2((prevCanvasPxY - layerCenterPxY).toDouble(), (prevCanvasPxX - layerCenterPxX).toDouble())).toFloat()
-                                                            val currAng = Math.toDegrees(kotlin.math.atan2((currCanvasPxY - layerCenterPxY).toDouble(), (currCanvasPxX - layerCenterPxX).toDouble())).toFloat()
-                                                            var rotDelta = currAng - prevAng
-                                                            if (rotDelta > 180f) rotDelta -= 360f
-                                                            if (rotDelta < -180f) rotDelta += 360f
-                                                            viewModel.transformSelectedLayerByGesture(
-                                                                dxNorm = 0f,
-                                                                dyNorm = 0f,
-                                                                zoomChange = 1f,
-                                                                rotationChangeDeg = rotDelta
-                                                            )
-                                                        }
-                                                        else -> {
-                                                            val dxNorm = (dragDelta.x / w) / currentZoomScale.coerceAtLeast(1f)
-                                                            val dyNorm = (dragDelta.y / h) / currentZoomScale.coerceAtLeast(1f)
-                                                            viewModel.transformSelectedLayerByGesture(
-                                                                dxNorm = dxNorm,
-                                                                dyNorm = dyNorm,
-                                                                zoomChange = 1f,
-                                                                rotationChangeDeg = 0f
-                                                            )
-                                                        }
+                                                    } else if (hitLayer == null && currentZoomScale > 1.01f) {
+                                                        // Pan the zoomed canvas when dragging empty area
+                                                        change.consume()
+                                                        viewModel.panAndZoomCanvasByGesture(
+                                                            panDxNorm = dragDelta.x / w,
+                                                            panDyNorm = dragDelta.y / h,
+                                                            zoomFactor = 1f
+                                                        )
                                                     }
-                                                } else if (hitLayer == null && currentZoomScale > 1.01f) {
-                                                    // Pan the zoomed canvas when dragging empty area
-                                                    change.consume()
+                                                }
+                                                prevPos = currPos
+                                            } else if (activePointers.size >= 2) {
+                                                hasMoved = true
+                                                val p1 = activePointers[0]
+                                                val p2 = activePointers[1]
+                                                val p1Prev = p1.previousPosition
+                                                val p2Prev = p2.previousPosition
+                                                val p1Curr = p1.position
+                                                val p2Curr = p2.position
+
+                                                val prevCentroid = (p1Prev + p2Prev) / 2f
+                                                val currCentroid = (p1Curr + p2Curr) / 2f
+                                                val panDelta = currCentroid - prevCentroid
+
+                                                val prevDist = (p1Prev - p2Prev).getDistance().coerceAtLeast(1f)
+                                                val currDist = (p1Curr - p2Curr).getDistance().coerceAtLeast(1f)
+                                                val zoom = (currDist / prevDist).coerceIn(0.7f, 1.3f)
+
+                                                val prevAngle = Math.toDegrees(kotlin.math.atan2((p2Prev.y - p1Prev.y).toDouble(), (p2Prev.x - p1Prev.x).toDouble())).toFloat()
+                                                val currAngle = Math.toDegrees(kotlin.math.atan2((p2Curr.y - p1Curr.y).toDouble(), (p2Curr.x - p1Curr.x).toDouble())).toFloat()
+                                                var rotDelta = currAngle - prevAngle
+                                                if (rotDelta > 180f) rotDelta -= 360f
+                                                if (rotDelta < -180f) rotDelta += 360f
+
+                                                p1.consume()
+                                                p2.consume()
+
+                                                if (hitLayer == null) {
+                                                    // 2-Finger Pinch Zoom & Pan on Canvas (100%..500%)
                                                     viewModel.panAndZoomCanvasByGesture(
-                                                        panDxNorm = dragDelta.x / w,
-                                                        panDyNorm = dragDelta.y / h,
-                                                        zoomFactor = 1f
+                                                        panDxNorm = panDelta.x / w,
+                                                        panDyNorm = panDelta.y / h,
+                                                        zoomFactor = zoom
+                                                    )
+                                                } else {
+                                                    viewModel.transformSelectedLayerByGesture(
+                                                        dxNorm = (panDelta.x / w) / currentZoomScale.coerceAtLeast(1f),
+                                                        dyNorm = (panDelta.y / h) / currentZoomScale.coerceAtLeast(1f),
+                                                        zoomChange = zoom,
+                                                        rotationChangeDeg = rotDelta
                                                     )
                                                 }
                                             }
-                                            prevPos = currPos
-                                        } else if (activePointers.size >= 2) {
-                                            hasMoved = true
-                                            val p1 = activePointers[0]
-                                            val p2 = activePointers[1]
-                                            val p1Prev = p1.previousPosition
-                                            val p2Prev = p2.previousPosition
-                                            val p1Curr = p1.position
-                                            val p2Curr = p2.position
+                                        } while (event.changes.any { it.pressed })
 
-                                            val prevCentroid = (p1Prev + p2Prev) / 2f
-                                            val currCentroid = (p1Curr + p2Curr) / 2f
-                                            val panDelta = currCentroid - prevCentroid
-
-                                            val prevDist = (p1Prev - p2Prev).getDistance().coerceAtLeast(1f)
-                                            val currDist = (p1Curr - p2Curr).getDistance().coerceAtLeast(1f)
-                                            val zoom = (currDist / prevDist).coerceIn(0.7f, 1.3f)
-
-                                            val prevAngle = Math.toDegrees(kotlin.math.atan2((p2Prev.y - p1Prev.y).toDouble(), (p2Prev.x - p1Prev.x).toDouble())).toFloat()
-                                            val currAngle = Math.toDegrees(kotlin.math.atan2((p2Curr.y - p1Curr.y).toDouble(), (p2Curr.x - p1Curr.x).toDouble())).toFloat()
-                                            var rotDelta = currAngle - prevAngle
-                                            if (rotDelta > 180f) rotDelta -= 360f
-                                            if (rotDelta < -180f) rotDelta += 360f
-
-                                            p1.consume()
-                                            p2.consume()
-
-                                            if (hitLayer == null) {
-                                                // 2-Finger Pinch Zoom & Pan on Canvas (100%..500%)
-                                                viewModel.panAndZoomCanvasByGesture(
-                                                    panDxNorm = panDelta.x / w,
-                                                    panDyNorm = panDelta.y / h,
-                                                    zoomFactor = zoom
-                                                )
+                                        if (!hasMoved) {
+                                            val now = System.currentTimeMillis()
+                                            if (now - lastTapTimestamp < 320L && currentSelectedLayer is TextLayer) {
+                                                showEditTextDialog = true
                                             } else {
-                                                viewModel.transformSelectedLayerByGesture(
-                                                    dxNorm = (panDelta.x / w) / currentZoomScale.coerceAtLeast(1f),
-                                                    dyNorm = (panDelta.y / h) / currentZoomScale.coerceAtLeast(1f),
-                                                    zoomChange = zoom,
-                                                    rotationChangeDeg = rotDelta
-                                                )
+                                                lastTapTimestamp = now
+                                                if (hitLayer == null) {
+                                                    viewModel.selectLayer(null)
+                                                }
                                             }
                                         }
-                                    } while (event.changes.any { it.pressed })
-
-                                    if (!hasMoved) {
-                                        val now = System.currentTimeMillis()
-                                        if (now - lastTapTimestamp < 320L && currentSelectedLayer is TextLayer) {
-                                            showEditTextDialog = true
-                                        } else {
-                                            lastTapTimestamp = now
-                                            if (hitLayer == null) {
-                                                viewModel.selectLayer(null)
-                                            }
-                                        }
-                                    } else {
+                                    } finally {
                                         viewModel.finalizeGestureTransform()
                                     }
                                 }
